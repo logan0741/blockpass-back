@@ -1,16 +1,12 @@
-import os
-
 from fastapi import FastAPI
-from sqlalchemy import create_engine, text
 import uvicorn
 
-app = FastAPI()
+from api.contracts import router as contracts_router
+from api.health import router as health_router
 
-DB_URL = os.getenv(
-    "DATABASE_URL",
-    "mysql+pymysql://user:password@127.0.0.1:3306/blockpass",
-)
-engine = create_engine(DB_URL, pool_pre_ping=True)
+app = FastAPI()
+app.include_router(health_router)
+app.include_router(contracts_router)
 
 
 @app.get("/")
