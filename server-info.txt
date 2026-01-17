@@ -1,0 +1,26 @@
+Blockpass servers (VPN/private IP)
+
+- back: 172.10.5.40 (SSH 22)
+- ai: 172.10.5.70 (SSH 22)
+- front: planned (to be combined later)
+
+Ports
+- back API: 8000
+- ai API: 8000 (already in use on AI server)
+
+Back server API access from AI server
+- URL: http://172.10.5.40:8000/
+- Health: http://172.10.5.40:8000/db/health
+
+SSH tunnel option (if direct VPN is unstable)
+- On AI server, run:
+  ssh -N -L 8000:localhost:8000 root@172.10.5.40
+- Then on AI server:
+  curl http://localhost:8000/
+
+Database
+- MySQL on back server, connect via localhost
+- DSN: mysql+pymysql://appuser:2week@127.0.0.1:3306/blockpass
+
+Notes
+- If direct VPN access fails, use SSH tunnel per above.
