@@ -44,6 +44,23 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession
         raise credentials_exception
     return user
 
+# 이메일 중복 체크 엔드포인트 추가
+@router.post("/check-email")
+async def check_email(
+    email: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """회원가입 시 이메일 중복 여부를 확인하는 엔드포인트"""
+    check_query = await db.execute(select(User).where(User.id == email))
+    existing_user = check_query.scalar_one_or_none()
+    
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="이미 사용 중인 이메일입니다."
+        )
+    
+    return {"message": "사용 가능한 이메일입니다."}
 # 1. 회원가입 (비밀번호 암호화 + 프로필 자동 생성)
 @router.post("/register")
 async def register(user_data: UserCreate, db: AsyncSession = Depends(get_db)):
