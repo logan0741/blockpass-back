@@ -66,6 +66,9 @@ class Pass(Base):
     price = Column(DECIMAL(20, 8)) # ETH
     duration_days = Column(Integer)
     duration_minutes = Column(Integer)
+    contract_address = Column(String(100))
+    contract_chain = Column(String(50))
+    refund_rules = Column(JSON)
     status = Column(String(20), default="active")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -100,6 +103,8 @@ class Order(Base):
     user_id = Column(Integer, ForeignKey("users.user_id"), nullable=False)
     pass_id = Column(Integer, ForeignKey("passes.id"), nullable=False)
     amount = Column(DECIMAL(20, 8))
+    tx_hash = Column(String(100))
+    chain = Column(String(50))
     status = Column(String(20), default="paid") # paid | refunded | cancelled
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 

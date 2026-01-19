@@ -90,13 +90,27 @@ async def get_passes_by_facility(
         select(Pass).where(Pass.facility_id == facility_id).order_by(Pass.created_at.desc())
     )
     passes = result.scalars().all()
-    return [
-        {
-            "id": p.id,
-            "title": p.title,
-            "price": p.price,
-            "duration_days": p.duration_days,
-            "status": p.status,
-        }
-        for p in passes
-    ]
+    items = []
+    for p in passes:
+        rules = p.refund_rules
+        if isinstance(rules, str):
+            try:
+                import json
+                rules = json.loads(rules)
+            except Exception:
+                rules = []
+        items.append(
+            {
+                "id": p.id,
+                "title": p.title,
+                "price": p.price,
+                "duration_days": p.duration_days,
+                "duration_minutes": p.duration_minutes,
+                "terms": p.terms,
+                "contract_address": p.contract_address,
+                "contract_chain": p.contract_chain,
+                "refund_rules": rules,
+                "status": p.status,
+            }
+        )
+    return items

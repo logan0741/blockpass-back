@@ -40,6 +40,9 @@ async def list_business_passes(
             "price": p.price,
             "duration_days": p.duration_days,
             "duration_minutes": p.duration_minutes,
+            "contract_address": p.contract_address,
+            "contract_chain": p.contract_chain,
+            "refund_rules": p.refund_rules,
             "status": p.status,
             "created_at": p.created_at,
         }
@@ -76,6 +79,11 @@ async def create_business_pass(
         price=Decimal(str(payload.price)),
         duration_days=payload.duration_days,
         duration_minutes=payload.duration_minutes,
+        contract_address=payload.contract_address,
+        contract_chain=payload.contract_chain,
+        refund_rules=[rule.model_dump() for rule in payload.refund_rules]
+        if payload.refund_rules
+        else None,
         status="active",
     )
     db.add(new_pass)

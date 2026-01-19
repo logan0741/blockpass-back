@@ -29,9 +29,22 @@ class ProfileUpdateRequest(BaseModel):
     lat: float | None = None
     lng: float | None = None
 
+class RefundRulePayload(BaseModel):
+    period: int
+    unit: Literal["일", "시간", "분"]
+    refund_percent: int
+
 class PassCreateRequest(BaseModel):
     title: str
     terms: str | None = None
     price: float
     duration_days: int | None = None
     duration_minutes: int | None = None
+    contract_address: str | None = None
+    contract_chain: str | None = None
+    refund_rules: list[RefundRulePayload] | None = None
+
+class OrderPurchaseRequest(BaseModel):
+    tx_hash: str | None = None
+    chain: str | None = None
+    wallet_address: str | None = None
