@@ -6,7 +6,7 @@ from app.core.db import get_db
 from api.auth import get_current_user
 from app.models.models import User, Pass, Order, BlockchainContract, Subscription
 import uuid
-from datetime import date, timedelta # 날짜 계산을 위해 추가
+from datetime import datetime, timedelta # 날짜 계산을 위해 추가
 
 router = APIRouter(prefix="/orders", tags=["Order"])
 
@@ -20,9 +20,10 @@ async def purchase_pass(
     result = await db.execute(select(Pass).where(Pass.id == pass_id))
     target_pass = result.scalar_one_or_none()
     
-    #if not target_pass:
-    if current_user.role != "customer":
+    if not target_pass:
         raise HTTPException(status_code=404, detail="존재하지 않는 이용권입니다.")
+    if current_user.role != "customer":
+        raise HTTPException(status_code=403, detail="고객만 구매할 수 있습니다.")
 
     try:
         # 2. 주문 정보 생성 (DB 저장)
@@ -45,14 +46,19 @@ async def purchase_pass(
             status="deployed"
         )
         db.add(new_contract)
-        start_date = date.today()
-        end_date = start_date + timedelta(days=target_pass.duration_days)
+        start_at = datetime.utcnow()
+        duration_minutes = (
+            target_pass.duration_minutes
+            if target_pass.duration_minutes is not None
+            else (target_pass.duration_days or 0) * 24 * 60
+        )
+        end_at = start_at + timedelta(minutes=duration_minutes)
         # 4. 유저 구독 정보 갱신 (실제 서비스 이용권 부여)
         new_sub = Subscription(
             user_id=current_user.user_id,
             pass_id=target_pass.id,
-            start_date=start_date, # 추가
-            end_date=end_date,
+            start_at=start_at, # 추가
+            end_at=end_at,
             status="active"
         )
         db.add(new_sub)
@@ -76,13 +82,41 @@ async def get_my_orders(
 ):
     # 내 주문, 이용권 이름, 블록체인 주소를 한 번에 가져오는 쿼리입니다.
     query = text("""
-        SELECT o.id, p.title, p.price, bc.contract_address, s.end_date, s.status
+        SELECT o.id, p.title, p.price, p.duration_minutes, bc.contract_address, s.start_at, s.end_at, s.status
         FROM orders o
         JOIN passes p ON o.pass_id = p.id
         JOIN blockchain_contracts bc ON o.id = bc.order_id
         JOIN subscriptions s ON o.user_id = s.user_id AND o.pass_id = s.pass_id
         WHERE o.user_id = :u_id
+          AND o.status != 'cancelled'
+          AND s.status != 'cancelled'
         ORDER BY o.created_at DESC
     """)
     result = await db.execute(query, {"u_id": current_user.user_id})
     return [dict(row._mapping) for row in result]
+
+
+@router.delete("/{order_id}")
+async def delete_order(
+    order_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    result = await db.execute(
+        select(Order).where(Order.id == order_id, Order.user_id == current_user.user_id)
+    )
+    order = result.scalar_one_or_none()
+    if not order:
+        raise HTTPException(status_code=404, detail="주문을 찾을 수 없습니다.")
+
+    order.status = "cancelled"
+    await db.execute(
+        text("""
+            UPDATE subscriptions
+            SET status = 'cancelled'
+            WHERE user_id = :u_id AND pass_id = :p_id
+        """),
+        {"u_id": current_user.user_id, "p_id": order.pass_id},
+    )
+    await db.commit()
+    return {"status": "success"}

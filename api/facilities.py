@@ -35,7 +35,8 @@ async def seed_facilities(db: AsyncSession = Depends(get_db)):
         facility_id=test_facility.id,
         title="1개월 자유 이용권",
         price=100000,
-        duration_days=30
+        duration_days=30,
+        duration_minutes=30 * 24 * 60
     )
     db.add(test_pass)
     await db.commit()
@@ -45,16 +46,28 @@ async def seed_facilities(db: AsyncSession = Depends(get_db)):
 # [api/facilities.py] get_facilities 함수 전체를 아래 내용으로 교체하세요.
 @router.get("/list")
 async def get_facilities(db: AsyncSession = Depends(get_db)):
-    # [수정] 최저가 이용권의 'ID(min_pass_id)'를 함께 가져오도록 쿼리 보강
+    # ONLY_FULL_GROUP_BY 호환: 시설별 최저가 이용권 1건을 서브쿼리로 선택
     query = text("""
-        SELECT f.*, p.price as min_price, p.id as min_pass_id
+        SELECT
+            f.id,
+            f.business_id,
+            f.name,
+            f.category,
+            f.address,
+            f.lat,
+            f.lng,
+            f.created_at,
+            p.price as min_price,
+            p.id as min_pass_id
         FROM facilities f
-        LEFT JOIN (
-            SELECT facility_id, MIN(price) as min_p 
-            FROM passes GROUP BY facility_id
-        ) mp ON f.id = mp.facility_id
-        LEFT JOIN passes p ON f.id = p.facility_id AND p.price = mp.min_p
-        GROUP BY f.id
+        LEFT JOIN passes p
+          ON p.id = (
+            SELECT p2.id
+            FROM passes p2
+            WHERE p2.facility_id = f.id
+            ORDER BY p2.price ASC, p2.id ASC
+            LIMIT 1
+          )
     """)
     result = await db.execute(query)
     
@@ -62,7 +75,28 @@ async def get_facilities(db: AsyncSession = Depends(get_db)):
     return [
         {
             **dict(row._mapping),
-            "price_display": f"{row.min_price / 1000000:.2f} ETH" if row.min_price else "가격 준비중"
+            "price_display": f"{row.min_price:.4f} ETH" if row.min_price else "가격 준비중"
         } 
         for row in result
+    ]
+
+
+@router.get("/{facility_id}/passes")
+async def get_passes_by_facility(
+    facility_id: int,
+    db: AsyncSession = Depends(get_db)
+):
+    result = await db.execute(
+        select(Pass).where(Pass.facility_id == facility_id).order_by(Pass.created_at.desc())
+    )
+    passes = result.scalars().all()
+    return [
+        {
+            "id": p.id,
+            "title": p.title,
+            "price": p.price,
+            "duration_days": p.duration_days,
+            "status": p.status,
+        }
+        for p in passes
     ]

@@ -3,3 +3,12 @@ uvicorn
 sqlalchemy
 pymysql
 pyngrok
+aiomysql
+python-dotenv
+python-jose[cryptography]
+passlib[bcrypt]
+bcrypt==3.2.2
+email_validator
+python-multipart
+httpx
+requests

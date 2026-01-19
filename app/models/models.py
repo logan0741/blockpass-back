@@ -1,5 +1,5 @@
 # C:\Project\kaist\2_week\blockpass-back\app\models\models.py
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, DECIMAL, Date, LargeBinary, JSON
+from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, DECIMAL, Date, LargeBinary, JSON, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.core.db import Base
@@ -62,8 +62,10 @@ class Pass(Base):
     business_id = Column(Integer, ForeignKey("business_profiles.id"), nullable=False)
     facility_id = Column(Integer, ForeignKey("facilities.id"))
     title = Column(String(100))
-    price = Column(Integer) # KRW
+    terms = Column(Text)
+    price = Column(DECIMAL(20, 8)) # ETH
     duration_days = Column(Integer)
+    duration_minutes = Column(Integer)
     status = Column(String(20), default="active")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -97,7 +99,7 @@ class Order(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey("users.user_id"), nullable=False)
     pass_id = Column(Integer, ForeignKey("passes.id"), nullable=False)
-    amount = Column(Integer)
+    amount = Column(DECIMAL(20, 8))
     status = Column(String(20), default="paid") # paid | refunded | cancelled
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -111,8 +113,8 @@ class Subscription(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey("users.user_id"), nullable=False)
     pass_id = Column(Integer, ForeignKey("passes.id"), nullable=False)
-    start_date = Column(Date)
-    end_date = Column(Date)
+    start_at = Column(DateTime(timezone=True))
+    end_at = Column(DateTime(timezone=True))
     status = Column(String(20), default="active") # active | expired | refunded
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 

@@ -11,6 +11,7 @@ from api.auth import router as auth_router
 from api.ocr import router as ocr_router
 from api.facilities import router as facility_router # 추가
 from api.orders import router as order_router
+from api.business import router as business_router
 # from api.contracts import router as contract_router # 계약서 기능 활성화 시 주석 해제
 
 app = FastAPI(
@@ -49,6 +50,7 @@ app.include_router(auth_router, prefix="/api/v1", tags=["Authentication"])
 app.include_router(ocr_router, prefix="/api/v1", tags=["OCR"])
 app.include_router(facility_router, prefix="/api/v1") # 라우터 등록
 app.include_router(order_router, prefix="/api/v1")
+app.include_router(business_router, prefix="/api/v1")
 # app.include_router(contract_router, prefix="/api/v1", tags=["Contract"])
 
 @app.get("/")

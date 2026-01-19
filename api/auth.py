@@ -6,8 +6,8 @@ from sqlalchemy import select
 from jose import jwt, JWTError
 from fastapi.security import OAuth2PasswordRequestForm
 from app.core.db import get_db
-from app.models.models import User, BusinessProfile, CustomerProfile
-from app.schemas.schemas import UserCreate, UserLogin, Token
+from app.models.models import User, BusinessProfile, CustomerProfile, Facility
+from app.schemas.schemas import UserCreate, UserLogin, Token, EmailCheckRequest, ProfileUpdateRequest
 from app.core.security import (
     get_password_hash, 
     verify_password, 
@@ -47,20 +47,17 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession
 # 이메일 중복 체크 엔드포인트 추가
 @router.post("/check-email")
 async def check_email(
-    email: str,
+    payload: EmailCheckRequest,
     db: AsyncSession = Depends(get_db)
 ):
     """회원가입 시 이메일 중복 여부를 확인하는 엔드포인트"""
-    check_query = await db.execute(select(User).where(User.id == email))
+    check_query = await db.execute(select(User).where(User.id == payload.email))
     existing_user = check_query.scalar_one_or_none()
     
     if existing_user:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="이미 사용 중인 이메일입니다."
-        )
+        return {"available": False, "message": "이미 사용 중인 이메일입니다."}
     
-    return {"message": "사용 가능한 이메일입니다."}
+    return {"available": True, "message": "사용 가능한 이메일입니다."}
 # 1. 회원가입 (비밀번호 암호화 + 프로필 자동 생성)
 @router.post("/register")
 async def register(user_data: UserCreate, db: AsyncSession = Depends(get_db)):
@@ -149,17 +146,13 @@ async def read_users_me(current_user: User = Depends(get_current_user)):
         "email": current_user.id,
         "name": current_user.name,
         "role": current_user.role,
+        "wallet_address": current_user.wallet_address,
         "created_at": current_user.created_at
     }
 # 4. 프로필 정보 업데이트 (← 여기부터 새로 추가!)
 @router.patch("/profile")
 async def update_profile(
-    business_name: str = None,
-    registration_number: str = None,
-    wallet_address: str = None,
-    address: str = None,  # 추가
-    lat: float = None,  # 추가
-    lng: float = None,  # 추가
+    payload: ProfileUpdateRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -174,14 +167,37 @@ async def update_profile(
             if not profile:
                 raise HTTPException(status_code=404, detail="프로필을 찾을 수 없습니다.")
             
-            if business_name:
-                profile.business_name = business_name
-            if registration_number:
-                profile.registration_number = registration_number
+            if payload.business_name:
+                profile.business_name = payload.business_name
+            if payload.registration_number:
+                profile.registration_number = payload.registration_number
+
+            # 사업장 위치 정보가 들어오면 시설 정보를 생성/갱신
+            if payload.address and payload.lat is not None and payload.lng is not None:
+                facility_result = await db.execute(
+                    select(Facility).where(Facility.business_id == profile.id).order_by(Facility.id)
+                )
+                facility = facility_result.scalars().first()
+                if facility:
+                    facility.address = payload.address
+                    facility.lat = payload.lat
+                    facility.lng = payload.lng
+                    if payload.business_name:
+                        facility.name = payload.business_name
+                else:
+                    facility = Facility(
+                        business_id=profile.id,
+                        name=payload.business_name or "사업장",
+                        category="etc",
+                        address=payload.address,
+                        lat=payload.lat,
+                        lng=payload.lng,
+                    )
+                    db.add(facility)
         
         # 지갑 주소는 User 테이블에 저장
-        if wallet_address:
-            current_user.wallet_address = wallet_address
+        if payload.wallet_address:
+            current_user.wallet_address = payload.wallet_address
         
         await db.commit()
         

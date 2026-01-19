@@ -17,3 +17,21 @@ class Token(BaseModel):
     access_token: str
     token_type: str
     role: str
+
+class EmailCheckRequest(BaseModel):
+    email: EmailStr
+
+class ProfileUpdateRequest(BaseModel):
+    business_name: str | None = None
+    registration_number: str | None = None
+    wallet_address: str | None = None
+    address: str | None = None
+    lat: float | None = None
+    lng: float | None = None
+
+class PassCreateRequest(BaseModel):
+    title: str
+    terms: str | None = None
+    price: float
+    duration_days: int | None = None
+    duration_minutes: int | None = None
