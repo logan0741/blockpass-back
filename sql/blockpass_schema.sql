@@ -41,8 +41,13 @@ CREATE TABLE IF NOT EXISTS passes (
   business_id INT NOT NULL,
   facility_id INT,
   title VARCHAR(255),
+  terms TEXT,
   price INT,
   duration_days INT,
+  duration_minutes INT,
+  contract_address VARCHAR(100),
+  contract_chain VARCHAR(50),
+  refund_rules JSON,
   status VARCHAR(50),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_pass_business FOREIGN KEY (business_id) REFERENCES business_profiles(id),
@@ -70,7 +75,10 @@ CREATE TABLE IF NOT EXISTS orders (
   id INT PRIMARY KEY AUTO_INCREMENT,
   user_id INT NOT NULL,
   pass_id INT NOT NULL,
+  source_document_id INT,
   amount INT,
+  tx_hash VARCHAR(100),
+  chain VARCHAR(50),
   status VARCHAR(50),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_order_user FOREIGN KEY (user_id) REFERENCES users(user_id),
@@ -83,6 +91,8 @@ CREATE TABLE IF NOT EXISTS subscriptions (
   pass_id INT NOT NULL,
   start_date DATE,
   end_date DATE,
+  start_at DATETIME,
+  end_at DATETIME,
   status VARCHAR(50),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_subscription_user FOREIGN KEY (user_id) REFERENCES users(user_id),
@@ -106,4 +116,16 @@ CREATE TABLE IF NOT EXISTS refunds (
   reason VARCHAR(255),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_refund_order FOREIGN KEY (order_id) REFERENCES orders(id)
+);
+
+CREATE TABLE IF NOT EXISTS ocr_documents (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  customer_profile_id INT NULL,
+  business_profile_id INT NULL,
+  image_png LONGBLOB,
+  ocr_result JSON,
+  status VARCHAR(20) DEFAULT 'pending',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_ocr_customer FOREIGN KEY (customer_profile_id) REFERENCES customer_profiles(id),
+  CONSTRAINT fk_ocr_business FOREIGN KEY (business_profile_id) REFERENCES business_profiles(id)
 );

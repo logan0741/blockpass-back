@@ -102,6 +102,7 @@ class Order(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey("users.user_id"), nullable=False)
     pass_id = Column(Integer, ForeignKey("passes.id"), nullable=False)
+    source_document_id = Column(Integer, ForeignKey("ocr_documents.id"), nullable=True)
     amount = Column(DECIMAL(20, 8))
     tx_hash = Column(String(100))
     chain = Column(String(50))

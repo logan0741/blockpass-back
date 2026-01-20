@@ -7,13 +7,67 @@ from api.auth import get_current_user
 from app.models.models import User, Pass, Order, Subscription, Refund
 from app.schemas.schemas import OrderPurchaseRequest
 from datetime import datetime, timedelta
+from decimal import Decimal
+from typing import Optional, Any, List
+import json
 
 router = APIRouter(prefix="/orders", tags=["Order"])
+
+UNIT_MINUTES = {
+    "일": 24 * 60,
+    "day": 24 * 60,
+    "days": 24 * 60,
+    "시간": 60,
+    "hour": 60,
+    "hours": 60,
+    "분": 1,
+    "minute": 1,
+    "minutes": 1,
+}
+
+
+def _parse_refund_rules(raw: Any) -> List[dict]:
+    if isinstance(raw, str):
+        try:
+            raw = json.loads(raw)
+        except Exception:
+            return []
+    if not isinstance(raw, list):
+        return []
+    return [rule for rule in raw if isinstance(rule, dict)]
+
+
+def _refund_percent(refund_rules: List[dict], start_at: Optional[datetime]) -> int:
+    if not start_at or not refund_rules:
+        return 0
+    elapsed_minutes = max(0, int((datetime.utcnow() - start_at).total_seconds() / 60))
+    sorted_rules = sorted(refund_rules, key=lambda r: r.get("period", 0))
+    for rule in sorted_rules:
+        try:
+            period = int(rule.get("period", 0))
+        except (TypeError, ValueError):
+            continue
+        unit = rule.get("unit") or "일"
+        minutes = UNIT_MINUTES.get(unit, 24 * 60) * period
+        if elapsed_minutes < minutes:
+            try:
+                return int(rule.get("refund_percent", 0))
+            except (TypeError, ValueError):
+                return 0
+    return 0
+
+
+def _refund_amount(base_amount: Optional[Decimal], percent: int) -> int:
+    if base_amount is None:
+        return 0
+    if percent <= 0:
+        return 0
+    return int((Decimal(base_amount) * Decimal(percent)) / Decimal(100))
 
 @router.post("/purchase/{pass_id}")
 async def purchase_pass(
     pass_id: int,
-    payload: OrderPurchaseRequest | None = None,
+    payload: Optional[OrderPurchaseRequest] = None,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -161,7 +215,7 @@ async def delete_order(
 @router.post("/refund/{order_id}")
 async def refund_order(
     order_id: int,
-    payload: OrderPurchaseRequest | None = None,
+    payload: Optional[OrderPurchaseRequest] = None,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -173,6 +227,19 @@ async def refund_order(
         raise HTTPException(status_code=404, detail="주문을 찾을 수 없습니다.")
 
     order.status = "refunded"
+    pass_result = await db.execute(select(Pass).where(Pass.id == order.pass_id))
+    pass_info = pass_result.scalar_one_or_none()
+    sub_result = await db.execute(
+        select(Subscription).where(
+            Subscription.user_id == current_user.user_id,
+            Subscription.pass_id == order.pass_id,
+        )
+    )
+    subscription = sub_result.scalar_one_or_none()
+    refund_rules = _parse_refund_rules(pass_info.refund_rules if pass_info else [])
+    percent = _refund_percent(refund_rules, subscription.start_at if subscription else None)
+    base_amount = order.amount if order.amount is not None else (pass_info.price if pass_info else None)
+    refund_amount = _refund_amount(base_amount, percent)
     await db.execute(
         text("""
             UPDATE subscriptions
@@ -185,7 +252,7 @@ async def refund_order(
         order.tx_hash = payload.tx_hash
     if payload and payload.chain:
         order.chain = payload.chain
-    db.add(Refund(order_id=order.id, refund_amount=0, reason="user_refund"))
+    db.add(Refund(order_id=order.id, refund_amount=refund_amount, reason="user_refund"))
     await db.commit()
     return {"status": "success"}
 
@@ -193,7 +260,7 @@ async def refund_order(
 @router.post("/bankruptcy/{order_id}")
 async def bankruptcy_refund(
     order_id: int,
-    payload: OrderPurchaseRequest | None = None,
+    payload: Optional[OrderPurchaseRequest] = None,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -205,6 +272,19 @@ async def bankruptcy_refund(
         raise HTTPException(status_code=404, detail="주문을 찾을 수 없습니다.")
 
     order.status = "refunded"
+    pass_result = await db.execute(select(Pass).where(Pass.id == order.pass_id))
+    pass_info = pass_result.scalar_one_or_none()
+    sub_result = await db.execute(
+        select(Subscription).where(
+            Subscription.user_id == current_user.user_id,
+            Subscription.pass_id == order.pass_id,
+        )
+    )
+    subscription = sub_result.scalar_one_or_none()
+    refund_rules = _parse_refund_rules(pass_info.refund_rules if pass_info else [])
+    percent = _refund_percent(refund_rules, subscription.start_at if subscription else None)
+    base_amount = order.amount if order.amount is not None else (pass_info.price if pass_info else None)
+    refund_amount = _refund_amount(base_amount, percent)
     await db.execute(
         text("""
             UPDATE subscriptions
@@ -217,6 +297,6 @@ async def bankruptcy_refund(
         order.tx_hash = payload.tx_hash
     if payload and payload.chain:
         order.chain = payload.chain
-    db.add(Refund(order_id=order.id, refund_amount=0, reason="bankruptcy"))
+    db.add(Refund(order_id=order.id, refund_amount=refund_amount, reason="bankruptcy"))
     await db.commit()
     return {"status": "success"}

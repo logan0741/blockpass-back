@@ -1,5 +1,6 @@
 import json
 import os
+from typing import Optional, List, Dict
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, Form, Header, HTTPException, UploadFile
@@ -17,14 +18,14 @@ MAX_IMAGE_BYTES = int(os.getenv("MAX_IMAGE_BYTES", "65535"))
 SAMPLE_RESULT_PATH = os.getenv("SAMPLE_RESULT_PATH", "ocr_result_example.json")
 
 
-def require_api_key(expected_key: str | None, received_key: str | None) -> None:
+def require_api_key(expected_key: Optional[str], received_key: Optional[str]) -> None:
     if not expected_key:
         raise HTTPException(status_code=500, detail="API key not configured")
     if received_key != expected_key:
         raise HTTPException(status_code=401, detail="Invalid API key")
 
 
-def load_sample_result() -> list[dict]:
+def load_sample_result() -> List[Dict]:
     try:
         with open(SAMPLE_RESULT_PATH, "r", encoding="utf-8") as handle:
             return json.load(handle)
@@ -43,7 +44,7 @@ async def ai_ocr(
     role: str = Form(...),
     profile_id: int = Form(...),
     image: UploadFile = File(...),
-    x_api_key: str | None = Header(default=None, alias="X-API-KEY"),
+    x_api_key: Optional[str] = Header(default=None, alias="X-API-KEY"),
 ) -> dict:
     require_api_key(AI_API_KEY, x_api_key)
 

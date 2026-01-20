@@ -1,5 +1,6 @@
 import re
 from decimal import Decimal, InvalidOperation
+from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
@@ -21,11 +22,11 @@ class RefundRule(BaseModel):
 
 class RefundPolicyPayload(BaseModel):
     pass_name: str
-    price_eth: str | None = None
+    price_eth: Optional[str] = None
     duration_value: int = Field(..., gt=0)
     duration_unit: str
-    refund_rules: list[RefundRule]
-    terms: str | None = None
+    refund_rules: List[RefundRule]
+    terms: Optional[str] = None
 
 
 def _sanitize_contract_name(name: str) -> str:

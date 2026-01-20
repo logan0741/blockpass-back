@@ -1,7 +1,7 @@
 # C:\Project\kaist\2_week\blockpass-back\app\schemas\schemas.py
 from pydantic import BaseModel, EmailStr, Field
 # 아래 줄이 빠져서 에러가 난 것입니다!
-from typing import Literal 
+from typing import Literal, Optional, List
 
 class UserCreate(BaseModel):
     email: EmailStr = Field(..., description="로그인용 이메일 ID")
@@ -22,12 +22,12 @@ class EmailCheckRequest(BaseModel):
     email: EmailStr
 
 class ProfileUpdateRequest(BaseModel):
-    business_name: str | None = None
-    registration_number: str | None = None
-    wallet_address: str | None = None
-    address: str | None = None
-    lat: float | None = None
-    lng: float | None = None
+    business_name: Optional[str] = None
+    registration_number: Optional[str] = None
+    wallet_address: Optional[str] = None
+    address: Optional[str] = None
+    lat: Optional[float] = None
+    lng: Optional[float] = None
 
 class RefundRulePayload(BaseModel):
     period: int
@@ -36,15 +36,15 @@ class RefundRulePayload(BaseModel):
 
 class PassCreateRequest(BaseModel):
     title: str
-    terms: str | None = None
+    terms: Optional[str] = None
     price: float
-    duration_days: int | None = None
-    duration_minutes: int | None = None
-    contract_address: str | None = None
-    contract_chain: str | None = None
-    refund_rules: list[RefundRulePayload] | None = None
+    duration_days: Optional[int] = None
+    duration_minutes: Optional[int] = None
+    contract_address: Optional[str] = None
+    contract_chain: Optional[str] = None
+    refund_rules: Optional[List[RefundRulePayload]] = None
 
 class OrderPurchaseRequest(BaseModel):
-    tx_hash: str | None = None
-    chain: str | None = None
-    wallet_address: str | None = None
+    tx_hash: Optional[str] = None
+    chain: Optional[str] = None
+    wallet_address: Optional[str] = None
