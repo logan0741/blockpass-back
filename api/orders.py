@@ -27,6 +27,7 @@ async def purchase_pass(
         raise HTTPException(status_code=403, detail="고객만 구매할 수 있습니다.")
     if not target_pass.contract_address:
         raise HTTPException(status_code=400, detail="블록체인에 배포된 이용권이 아닙니다.")
+    print(f"[purchase_pass] user_id={current_user.user_id} email={current_user.id} pass_id={pass_id}")
 
     try:
         now = datetime.utcnow()
