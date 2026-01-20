@@ -137,7 +137,7 @@ async def request_ai_ocr(image_bytes: bytes, company_type: Optional[str]) -> dic
             headers=headers,
             files={"file": ("image.png", image_bytes, "image/png")},
             data={"company_type": company_type or DEFAULT_COMPANY_TYPE},
-            timeout=90.0,
+            timeout=None,
         )
         response.raise_for_status()
         return response.json()

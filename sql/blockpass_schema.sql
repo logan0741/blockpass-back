@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS passes (
   facility_id INT,
   title VARCHAR(255),
   terms TEXT,
-  price INT,
+  price DECIMAL(20,8),
   duration_days INT,
   duration_minutes INT,
   contract_address VARCHAR(100),
@@ -76,7 +76,7 @@ CREATE TABLE IF NOT EXISTS orders (
   user_id INT NOT NULL,
   pass_id INT NOT NULL,
   source_document_id INT,
-  amount INT,
+  amount DECIMAL(20,8),
   tx_hash VARCHAR(100),
   chain VARCHAR(50),
   status VARCHAR(50),
@@ -112,7 +112,7 @@ CREATE TABLE IF NOT EXISTS blockchain_contracts (
 CREATE TABLE IF NOT EXISTS refunds (
   id INT PRIMARY KEY AUTO_INCREMENT,
   order_id INT NOT NULL,
-  refund_amount INT,
+  refund_amount DECIMAL(20,8),
   reason VARCHAR(255),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_refund_order FOREIGN KEY (order_id) REFERENCES orders(id)
